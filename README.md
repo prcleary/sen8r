@@ -1,0 +1,120 @@
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+# sen8r
+
+> Convenient R interface for interacting with the **SENAITE LIMS API**
+
+<!-- badges: start -->
+
+<!-- badges: end -->
+
+sen8r provides a clean, pipe-friendly and well-documented R interface
+for working with the SENAITE Laboratory Information Management System
+(LIMS) REST API. It simplifies authentication, querying, data extraction
+and metadata management to assist with implementation and analysis.
+
+------------------------------------------------------------------------
+
+## ✨ Features
+
+- 🔐 Simple authentication handling
+- 📦 Convenient wrappers around common SENAITE API endpoints
+- 🔎 Easy querying and filtering of objects
+- 📊 Returns tidy `data.frame` / `tibble` outputs
+- 🔁 Vectorized and pipe-friendly functions
+- 🧰 Built on `{httr2}` and `{jsonlite}`
+
+------------------------------------------------------------------------
+
+## 📦 Installation
+
+You can install the development version from GitHub:
+
+``` r
+# install.packages("remotes")
+remotes::install_github("prcleary/sen8r")
+```
+
+------------------------------------------------------------------------
+
+## 🚀 Getting Started
+
+### 1. Load the package
+
+``` r
+library(sen8r)
+```
+
+### 2. Authenticate
+
+``` r
+# ...
+```
+
+------------------------------------------------------------------------
+
+## 🔍 Examples
+
+### List analyses
+
+``` r
+# ...
+```
+
+### Get a specific sample
+
+``` r
+# ...
+```
+
+### Search for clients
+
+``` r
+# ...
+```
+
+------------------------------------------------------------------------
+
+## 📚 Main Functions
+
+| Function      | Description          |
+|---------------|----------------------|
+| `function1()` | what function 1 does |
+| `function2()` | what function 2 does |
+
+------------------------------------------------------------------------
+
+## 🔐 Authentication Notes
+
+…
+
+------------------------------------------------------------------------
+
+## 📖 API Reference
+
+- SENAITE API: [senaite.jsonapi — senaite.jsonapi 1.2.5
+  documentation](https://senaitejsonapi.readthedocs.io/en/latest/index.html)
+- Plone API: [plone.jsonapi.routes — plone.jsonapi.routes 0.9.3
+  documentation](https://plonejsonapiroutes.readthedocs.io/en/latest/index.html)
+
+------------------------------------------------------------------------
+
+## 🤝 Contributing
+
+…
+
+------------------------------------------------------------------------
+
+## 📄 License
+
+MIT
+
+------------------------------------------------------------------------
+
+## 📬 Support
+
+If you encounter a bug or want to request a feature, please open an
+issue:
+
+👉 <https://github.com/prcleary/sen8r/issues>
