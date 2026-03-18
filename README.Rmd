@@ -31,7 +31,7 @@ sen8r provides a clean, pipe-friendly and well-documented R interface for workin
 - 🔎 Easy querying and filtering of objects
 - 📊 Returns tidy `data.frame` / `tibble` outputs
 - 🔁 Vectorized and pipe-friendly functions
-- 🧰 Built on `{httr2}` and `{jsonlite}`
+- 🧰 Built on `{httr}` and `{jsonlite}`
 
 ---
 
