@@ -69,8 +69,8 @@
 #'
 #' @export
 post_senaite_data <- function(body,
-                              username,
-                              password,
+                              username = keyring::key_get('senaite_username'),
+                              password = keyring::key_get('senaite_password'),
                               base_url = keyring::key_get('BASE_URL')) {
   url <- construct_senaite_url('create', base_url = base_url)
   response <- httr::POST(url,
