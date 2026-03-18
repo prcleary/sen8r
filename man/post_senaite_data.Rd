@@ -6,8 +6,8 @@
 \usage{
 post_senaite_data(
   body,
-  username,
-  password,
+  username = keyring::key_get("senaite_username"),
+  password = keyring::key_get("senaite_password"),
   base_url = keyring::key_get("BASE_URL")
 )
 }
