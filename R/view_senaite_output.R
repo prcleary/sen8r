@@ -52,7 +52,10 @@
 #' @export
 view_senaite_output <- function(x, new_tab = TRUE) {
   senaite_output <- tibble::enframe(unlist(x))
-  if (new_tab)
-    View(senaite_output, 'SENAITE output')
+  if (new_tab) {
+    View <- get("View", envir = as.environment("package:utils"))
+    title <- deparse(substitute(x))
+    View(senaite_output, title)
+  }
   invisible(senaite_output)
 }
