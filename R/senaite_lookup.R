@@ -90,6 +90,8 @@ senaite_lookup <- function(endpoint,
   cli::cli_alert_info(paste('Lookup fields: ', paste0(names(lookup_table), collapse = ', ')))
 
   function(values, from, to) {
-    lookup_table[lookup_table[[from]] %in% values][[to]]
+    # Use match to find positions and preserve order
+    matches <- match(values, lookup_table[[from]])
+    lookup_table[[to]][matches]
   }
 }
