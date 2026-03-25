@@ -177,7 +177,7 @@ patient_name <- patient_lookup("MRN12345", "mrn", "title")
 patient_birthdate <- patient_lookup("MRN12345", "mrn", "birthdate")
 
 # Lookups are vectorized - look up multiple values at once
-multiple_uids <- dept_lookup(c("Microbiology", "Hematology", "Chemistry"),"title", "uid")
+multiple_uids <- dept_lookup(c("Microbiology", "Haematology", "Clinical Pathology"),"title", "uid")
 ```
 
 ### Flatten nested API output
@@ -201,8 +201,8 @@ View(patient_table)
 View the structure of a SENAITE object:
 
 ```r
-# Get one analysis request
-ars <- get_senaite_data('analysisrequest', limit = 1)
+# Get analysis requests and view the first one
+ars <- get_senaite_data('analysisrequest')
 
 # View its structure in a new tab
 view_senaite_output(ars[[1]])
