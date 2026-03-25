@@ -63,6 +63,7 @@ senaite_setup()
 ```
 
 This will prompt you to enter:
+
 - Your SENAITE username
 - Your SENAITE password
 - Your SENAITE base URL (e.g., `https://senaite.example.org/instancename`)
@@ -454,6 +455,7 @@ Contributions are welcome! If you'd like to contribute:
 5. Open a Pull Request
 
 Please ensure your code:
+
 - Follows the existing style and conventions
 - Includes roxygen2 documentation
 - Passes `R CMD check` without errors or warnings

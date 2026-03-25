@@ -23,7 +23,7 @@ and metadata management to assist with implementation and analysis.
 - 🔎 Easy querying and filtering of objects
 - 📊 Returns tidy `data.frame` / `tibble` outputs
 - 🔁 Vectorized and pipe-friendly functions
-- 🧰 Built on `{httr2}` and `{jsonlite}`
+- 🧰 Built on `{httr}` and `{jsonlite}`
 
 ------------------------------------------------------------------------
 
@@ -46,48 +46,387 @@ remotes::install_github("prcleary/sen8r")
 library(sen8r)
 ```
 
-### 2. Authenticate
+### 2. Set up authentication
+
+Run the interactive setup once to store your credentials securely:
 
 ``` r
-# ...
+senaite_setup()
 ```
+
+This will prompt you to enter: - Your SENAITE username - Your SENAITE
+password - Your SENAITE base URL (e.g.,
+`https://senaite.example.org/instancename`)
+
+Credentials are stored in your system keyring and used automatically by
+other functions.
 
 ------------------------------------------------------------------------
 
 ## 🔍 Examples
 
-### List analyses
+### Basic data retrieval
+
+Get all analyses:
 
 ``` r
-# ...
+# Get analyses with complete data
+analyses <- get_senaite_data(
+  endpoint = 'analysis',
+  params = list(complete = TRUE, children = TRUE)
+)
+
+length(analyses)  # Number of analyses retrieved
 ```
 
-### Get a specific sample
+### Filter by review state
+
+Get only published analyses:
 
 ``` r
-# ...
+published_analyses <- get_senaite_data(
+  'analysis',
+  params = list(
+    complete = TRUE,
+    children = TRUE,
+    review_state = 'published'
+  ),
+  limit = 200
+)
 ```
 
-### Search for clients
+### Filter by date
+
+Get analyses created this week:
 
 ``` r
-# ...
+recent_analyses <- get_senaite_data(
+  'analysis',
+  params = list(
+    complete = TRUE,
+    children = TRUE,
+    recent_created = 'this-week'  # Options: today, yesterday, this-week, this-month, this-year
+  )
+)
+
+sapply(recent_analyses, `[[`, 'title')
+```
+
+### Get analysis requests with results
+
+Retrieve published analysis requests from the current month:
+
+``` r
+recent_requests <- get_senaite_data(
+  'analysisrequest',
+  params = list(
+    children = TRUE,        # Include child analyses
+    complete = TRUE,        # Get all fields
+    recent_created = 'this-month',
+    review_state = 'published'
+  )
+)
+
+# Extract request information
+request_info <- lapply(
+  recent_requests,
+  \(x) list(
+    SampleTypeTitle = x[['SampleTypeTitle']],
+    title = x[['title']],
+    DatePublished = x[['DatePublished']],
+    DateReceived = x[['DateReceived']],
+    DateSampled = x[['DateSampled']],
+    ClientTitle = x[['getClientTitle']],
+    PatientFirstName = x[['PatientFullName']][['firstname']],
+    PatientLastName = x[['PatientFullName']][['lastname']],
+    id = x[['id']]
+  )
+) |> data.table::rbindlist(use.names = TRUE, fill = TRUE)
+```
+
+### Working with lookup tables
+
+Create reusable lookup functions to translate between fields:
+
+``` r
+# Create lookups for common endpoints
+dept_lookup <- senaite_lookup('department')
+patient_lookup <- senaite_lookup('patient')
+
+# Use the lookup to translate values
+# (converts department API URL to department title)
+dept_name <- dept_lookup(
+  values = "https://senaite.example.org/departments/dept-1",
+  from = "api_url",
+  to = "title"
+)
+
+# Lookup patient information by medical record number
+patient_name <- patient_lookup(
+  values = "MRN12345",
+  from = "mrn",
+  to = "title"
+)
+
+patient_birthdate <- patient_lookup(
+  values = "MRN12345",
+  from = "mrn",
+  to = "birthdate"
+)
+```
+
+### Flatten nested API output
+
+Convert nested JSON responses to tabular format:
+
+``` r
+# Get patient data
+patients <- get_senaite_data(
+  'patient',
+  params = list(complete = TRUE, children = TRUE)
+)
+
+# Flatten to data.table
+patient_table <- flatten_senaite_output(patients)
+View(patient_table)
+```
+
+### Inspect API responses
+
+View the structure of a SENAITE object:
+
+``` r
+# Get one analysis request
+ars <- get_senaite_data('analysisrequest', limit = 1)
+
+# View its structure in a new tab
+view_senaite_output(ars[[1]])
+
+# Or return as tibble without opening viewer
+output_tbl <- view_senaite_output(ars[[1]], new_tab = FALSE)
+```
+
+### Download metadata
+
+Download all metadata from various SENAITE endpoints:
+
+``` r
+# Helper function to get complete data
+get_it_all <- function(x) {
+  get_senaite_data(x, params = list(complete = TRUE, children = TRUE))
+}
+
+# Download all metadata categories
+metadata <- list(
+  analysiscategory = get_it_all('analysiscategory'),
+  analysisprofile = get_it_all('analysisprofile'),
+  analysisservice = get_it_all('analysisservice'),
+  antibiotic = get_it_all('antibiotic'),
+  containertype = get_it_all('containertype'),
+  department = get_it_all('department'),
+  method = get_it_all('method'),
+  sampletype = get_it_all('sampletype')
+)
+
+# Flatten all to tabular format
+metadata <- lapply(metadata, flatten_senaite_output)
+
+# Export to Excel
+library(openxlsx)
+metadata_output <- createWorkbook(
+  creator = 'Your Name',
+  title = 'SENAITE Metadata'
+)
+
+for (i in names(metadata)) {
+  if (nrow(metadata[[i]]) > 0) {
+    addWorksheet(metadata_output, i)
+    writeDataTable(metadata_output, sheet = i, x = metadata[[i]])
+    setColWidths(metadata_output, sheet = i, cols = 1:ncol(metadata[[i]]), widths = 'auto')
+    freezePane(metadata_output, i, firstRow = TRUE)
+  }
+}
+
+saveWorkbook(metadata_output, file = 'metadata.xlsx', overwrite = TRUE)
+```
+
+### Download PDF reports
+
+Find and download a report PDF:
+
+``` r
+# Get a report URL
+arreports <- get_senaite_data(
+  'arreport',
+  params = list(complete = TRUE, children = TRUE)
+)
+
+# View available PDFs
+sapply(arreports, `[[`, 'Pdf')
+
+# Download a specific report
+download_senaite_report(
+  url = 'https://senaite.example.org/clients/client-1/sample-001/arreport-1/at_download/Pdf',
+  output_file = 'sample-001-report.pdf'
+)
+```
+
+### Translate result codes
+
+Convert coded analysis results to human-readable text:
+
+``` r
+# When processing analysis results
+children <- lapply(recent_requests, `[[`, 'children')
+
+analysis_list <- list()
+for (i in children) {
+  filtered <- Filter(\(x) 'Result' %in% names(x), i)
+  
+  inner_list <- lapply(
+    filtered,
+    \(x) list(
+      title = x[['title']],
+      Result = lookup_senaite_resultoptions(
+        x[['Result']], 
+        x[['ResultOptions']]
+      ),
+      CategoryTitle = x[['getCategoryTitle']],
+      MethodTitle = x[['getMethodTitle']]
+    )
+  )
+  
+  analysis_list <- c(analysis_list, inner_list)
+}
+
+result_info <- data.table::rbindlist(analysis_list, use.names = TRUE, fill = TRUE)
+```
+
+### Search using catalogs
+
+Use SENAITE catalogs for advanced filtering:
+
+``` r
+# Get list of available catalogs
+catalogs <- get_senaite_data(
+  'catalogs',
+  params = list(complete = TRUE, children = TRUE)
+)
+sapply(catalogs, `[[`, 'id')
+
+# Search using a specific catalog
+catalog_results <- get_senaite_data(
+  'search',
+  params = list(
+    catalog = 'senaite_catalog_analysis',
+    review_state = 'published',
+    sort_on = 'getDatePublished',
+    sort_order = 'desc',
+    complete = TRUE,
+    children = TRUE
+  )
+)
+```
+
+### Get specific fields only
+
+Retrieve only the fields you need:
+
+``` r
+# Get only specific fields from clients
+client_info <- get_senaite_fields(
+  endpoint = 'client',
+  fields = c('ClientID', 'Name', 'EmailAddress', 'Phone'),
+  flatten = TRUE
+)
+```
+
+### Construct API URLs
+
+Build SENAITE API URLs programmatically:
+
+``` r
+# Simple endpoint
+url <- construct_senaite_url(
+  endpoint = 'analysisrequest',
+  base_url = 'https://senaite.example.org/lims'
+)
+
+# With query parameters
+url <- construct_senaite_url(
+  endpoint = 'analysisrequest',
+  params = list(
+    review_state = 'verified',
+    limit = 50,
+    recent_created = 'this-week'
+  ),
+  base_url = 'https://senaite.example.org/lims'
+)
 ```
 
 ------------------------------------------------------------------------
 
 ## 📚 Main Functions
 
-| Function      | Description          |
-|---------------|----------------------|
-| `function1()` | what function 1 does |
-| `function2()` | what function 2 does |
+| Function | Description |
+|----|----|
+| `senaite_setup()` | Interactive setup to store credentials securely in system keyring |
+| `get_senaite_data()` | Retrieve data from any SENAITE API endpoint with automatic pagination |
+| `get_senaite_fields()` | Get specific fields from an endpoint (subset of `get_senaite_data()`) |
+| `flatten_senaite_output()` | Convert nested API responses to flat tabular format |
+| `view_senaite_output()` | Inspect the structure of SENAITE objects in RStudio Viewer |
+| `senaite_lookup()` | Create reusable lookup functions to translate between fields |
+| `lookup_senaite_resultoptions()` | Translate coded result values to human-readable text |
+| `download_senaite_report()` | Download PDF or other report files from SENAITE |
+| `construct_senaite_url()` | Build SENAITE API URLs programmatically |
+| `post_senaite_data()` | Create new objects via the SENAITE API |
 
 ------------------------------------------------------------------------
 
 ## 🔐 Authentication Notes
 
-…
+Credentials are stored securely in your system keyring using the
+`{keyring}` package:
+
+- **Username**: stored under key `"senaite_username"`
+- **Password**: stored under key `"senaite_password"`
+- **Base URL**: stored under key `"BASE_URL"`
+
+### Viewing stored credentials
+
+``` r
+# View (not recommended for passwords)
+keyring::key_get("senaite_username")
+keyring::key_get("BASE_URL")
+```
+
+### Updating credentials
+
+Simply run `senaite_setup()` again to update stored values.
+
+### Manual credential management
+
+You can also set credentials manually:
+
+``` r
+keyring::key_set("senaite_username")
+keyring::key_set("senaite_password")
+keyring::key_set("BASE_URL")
+```
+
+### Temporary credentials
+
+All functions accept `username`, `password`, and `base_url` parameters
+to override stored credentials:
+
+``` r
+get_senaite_data(
+  'client',
+  username = 'temp_user',
+  password = 'temp_pass',
+  base_url = 'https://test.senaite.example.org/lims'
+)
+```
 
 ------------------------------------------------------------------------
 
@@ -102,7 +441,20 @@ library(sen8r)
 
 ## 🤝 Contributing
 
-…
+Contributions are welcome! If you’d like to contribute:
+
+1.  Fork the repository
+2.  Create a feature branch (`git checkout -b feature/amazing-feature`)
+3.  Commit your changes (`git commit -m 'Add some amazing feature'`)
+4.  Push to the branch (`git push origin feature/amazing-feature`)
+5.  Open a Pull Request
+
+Please ensure your code:
+
+- Follows the existing style and conventions
+- Includes roxygen2 documentation
+- Passes `R CMD check` without errors or warnings
+- Includes examples where appropriate
 
 ------------------------------------------------------------------------
 
