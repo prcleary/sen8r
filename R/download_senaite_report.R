@@ -11,11 +11,13 @@
 #' Credentials default to values stored in the system keyring.
 #'
 #' @param url `character(1)`. Fully qualified URL to the SENAITE report
-#'   endpoint (e.g., a PDF or other binary report resource).
+#'   endpoint (e.g., a PDF or other binary report resource). Example format:
+#'   `"https://senaite.example.org/clients/client-1/SAMPLE-001/arreport-1/at_download/Pdf"`
 #'
 #' @param output_file `character(1)`. Path (including filename) where the
-#'   downloaded file should be saved. If the file already exists, it will
-#'   be overwritten.
+#'   downloaded file should be saved. If `NULL` (default), the filename
+#'   is extracted from the URL (the sample ID component) with a `.pdf`
+#'   extension. If the file already exists, it will be overwritten.
 #'
 #' @param username `character(1)`. SENAITE username used for authentication.
 #'   Defaults to the value stored in the system keyring under
@@ -39,16 +41,27 @@
 #' This function does not automatically create directories for
 #' `output_file`. Ensure the target directory exists before calling.
 #'
+#' ## Automatic Filename Extraction
+#'
+#' When `output_file` is `NULL`, the function extracts the sample ID from
+#' the URL path. For example, given the URL:
+#'
+#' `https://senaite.example.org/clients/client-1/SAMPLE-001/arreport-1/at_download/Pdf`
+#'
+#' The output file will be `SAMPLE-001.pdf`.
+#'
 #' @examples
 #' \dontrun{
-#' # Example: download a PDF report
-#' report_url <- "https://lims.example.com/@@API/senaite/v1/report/AR-0001"
+#' # Example: download a PDF report with automatic filename
+#' report_url <- "https://senaite.example.org/clients/client-1/SAMPLE-001/arreport-1/at_download/Pdf"
 #'
+#' download_senaite_report(url = report_url)
+#' # Creates: SAMPLE-001.pdf
+#'
+#' # Example: download with custom filename
 #' download_senaite_report(
 #'   url = report_url,
-#'   output_file = "AR-0001-report.pdf",
-#'   username = "your_username",
-#'   password = "your_password"
+#'   output_file = "custom-report.pdf"
 #' )
 #' }
 #'
@@ -59,9 +72,23 @@
 #'
 #' @export
 download_senaite_report <- function(url,
-                                    output_file,
+                                    output_file = NULL,
                                     username = keyring::key_get('senaite_username'),
                                     password = keyring::key_get('senaite_password')) {
+  # Extract filename from URL if not provided
+  if (is.null(output_file)) {
+    # Parse URL path to extract sample ID
+    path_parts <- unlist(strsplit(url, "/"))
+    # Find the arreport position and get the component before it
+    arreport_idx <- which(grepl("^arreport-", path_parts))
+    if (length(arreport_idx) > 0 && arreport_idx > 1) {
+      sample_id <- path_parts[arreport_idx - 1]
+      output_file <- paste0(sample_id, ".pdf")
+    } else {
+      stop("Could not extract sample ID from URL. Please provide output_file explicitly.")
+    }
+  }
+  
   response <- httr::GET(url, httr::authenticate(username, password))
   if (httr::status_code(response) == 200) {
     writeBin(httr::content(response, 'raw'), output_file)

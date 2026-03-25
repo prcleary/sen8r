@@ -260,19 +260,20 @@ saveWorkbook(metadata_output, file = 'metadata.xlsx', overwrite = TRUE)
 Find and download a report PDF:
 
 ```r
-# Get a report URL
-arreports <- get_senaite_data(
-  'arreport',
-  params = list(complete = TRUE, children = TRUE)
-)
+# Get report download URLs
+arreports <- get_senaite_fields('arreport', fields = 'Pdf')
 
 # View available PDFs
-sapply(arreports, `[[`, 'Pdf')
+arreports$Pdf.download
 
-# Download a specific report
+# Download a report (filename automatically extracted from URL)
+download_senaite_report(url = arreports$Pdf.download[1])
+# Creates: SAMPLE-ID.pdf
+
+# Or specify a custom filename
 download_senaite_report(
-  url = 'https://senaite.example.org/clients/client-1/sample-001/arreport-1/at_download/Pdf',
-  output_file = 'sample-001-report.pdf'
+  url = arreports$Pdf.download[1],
+  output_file = 'custom-report.pdf'
 )
 ```
 
