@@ -149,33 +149,30 @@ request_info <- lapply(
 
 ### Working with lookup tables
 
-Create reusable lookup functions to translate between fields:
+Create reusable lookup functions to translate between any fields. This
+is especially useful for getting UIDs when creating resources:
 
 ``` r
 # Create lookups for common endpoints
 dept_lookup <- senaite_lookup('department')
+sampletype_lookup <- senaite_lookup('sampletype')
 patient_lookup <- senaite_lookup('patient')
 
-# Use the lookup to translate values
-# (converts department API URL to department title)
-dept_name <- dept_lookup(
-  values = "https://senaite.example.org/departments/dept-1",
-  from = "api_url",
-  to = "title"
-)
+# Get UID from title (most common use case for creating resources)
+dept_uid <- dept_lookup("Microbiology", "title", "uid")
+
+serum_uid <- sampletype_lookup("Serum", "title", "uid")
+
+# Convert department API URL to department title
+dept_name <- dept_lookup("https://senaite.example.org/departments/dept-1", "api_url", "title")
 
 # Lookup patient information by medical record number
-patient_name <- patient_lookup(
-  values = "MRN12345",
-  from = "mrn",
-  to = "title"
-)
+patient_name <- patient_lookup("MRN12345", "mrn", "title")
 
-patient_birthdate <- patient_lookup(
-  values = "MRN12345",
-  from = "mrn",
-  to = "birthdate"
-)
+patient_birthdate <- patient_lookup("MRN12345", "mrn", "birthdate")
+
+# Lookups are vectorized - look up multiple values at once
+multiple_uids <- dept_lookup(c("Microbiology", "Hematology", "Chemistry"),"title", "uid")
 ```
 
 ### Flatten nested API output
@@ -365,6 +362,133 @@ url <- construct_senaite_url(
   ),
   base_url = 'https://senaite.example.org/lims'
 )
+```
+
+### Create and Update Resources
+
+Use `post_senaite_data()` to create new objects in SENAITE:
+
+#### Looking up UIDs by title
+
+When creating resources, you often need UIDs for fields like
+`Department`, `SampleType`, `Category`, etc. Use `senaite_lookup()` to
+convert titles to UIDs:
+
+``` r
+# Create lookup functions for common metadata
+dept_lookup <- senaite_lookup('department')
+sampletype_lookup <- senaite_lookup('sampletype')
+category_lookup <- senaite_lookup('analysiscategory')
+method_lookup <- senaite_lookup('method')
+
+# Get UID from title
+microbiology_uid <- dept_lookup(
+  values = "Microbiology",
+  from = "title",
+  to = "uid"
+)
+
+serum_uid <- sampletype_lookup("Serum", "title", "uid")
+
+lft_category_uid <- category_lookup("LFT", "title", "uid")
+
+# You can also look up multiple values at once
+method_uids <- method_lookup(c("PCR", "ELISA"), "title", "uid")
+```
+
+#### Create an Analysis Specification
+
+``` r
+# Look up the sample type UID first
+sampletype_lookup <- senaite_lookup('sampletype')
+serum_uid <- sampletype_lookup("Serum", "title", "uid")
+
+# Define the analysis specification
+body <- list(
+  portal_type = "AnalysisSpec",
+  parent_path = "/aims-ajk/bika_setup/bika_analysisspecs",
+  title = "New test analysis specification",
+  SampleType = serum_uid,
+  ResultsRange = list(
+    list(keyword = "serum_sodium", min = 10, max = 20),
+    list(keyword = "serum_chloride", min = 20, max = 30)
+  )
+)
+
+post_senaite_data(body)
+```
+
+#### Create an Analysis Category
+
+Minimum fields: `portal_type`, `title`, `Department` (uid),
+`parent_path`
+
+``` r
+# Look up the department UID first
+dept_lookup <- senaite_lookup('department')
+microbiology_uid <- dept_lookup("Microbiology", "title", "uid")
+
+body <- list(
+  portal_type = 'AnalysisCategory',
+  title = 'New Category',
+  Department = microbiology_uid,
+  parent_path = '/ajkdemo/bika_setup/bika_analysiscategories'
+)
+
+post_senaite_data(body)
+```
+
+#### Create a Method
+
+Minimum fields: `portal_type`, `title`, `parent_path`
+
+``` r
+body <- list(
+  portal_type = 'Method',
+  title = 'Another method',
+  parent_path = '/ajkdemo/methods'
+)
+
+post_senaite_data(body)
+```
+
+#### Explore available fields
+
+Before creating a new resource, you can explore what fields are
+available:
+
+``` r
+# Look at Analysis Service fields
+analysisservice_allfields <- get_senaite_data(
+  'analysisservice'
+)
+names(analysisservice_allfields[[1]])
+```
+
+#### Create an Analysis Service
+
+Minimum fields: `portal_type`, `title`, `parent_path`, `Category`,
+`Keyword`, `pointofcapture`
+
+``` r
+# Look up required UIDs first
+category_lookup <- senaite_lookup('analysiscategory')
+method_lookup <- senaite_lookup('method')
+
+lft_category_uid <- category_lookup("LFT", "title", "uid")
+method_uids <- method_lookup(c("PCR", "ELISA"), "title", "uid")
+
+body <- list(
+  portal_type = 'AnalysisService',
+  title = 'New analysis service',
+  parent_path = '/ajkdemo/bika_setup/bika_analysisservices',
+  Category = lft_category_uid,
+  Keyword = 'new_analysis_keyword',
+  Methods = method_uids,  # all available methods
+  Method = method_uids[1]  # default method
+)
+
+response <- post_senaite_data(body)
 ```
 
 ------------------------------------------------------------------------
