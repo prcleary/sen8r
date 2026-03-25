@@ -86,9 +86,7 @@ senaite_setup <- function() {
     'tibble',
     'tidyr'
   )
-  pacman::p_load(package = standard_packages,
-                 character.only = TRUE,
-                 force = FALSE)
+  pacman::p_load(char = standard_packages)
   keyring::key_set('senaite_username', prompt = 'Enter Senaite user name: ')
   keyring::key_set('senaite_password', prompt = 'Enter Senaite password: ')
   keyring::key_set('BASE_URL', prompt = 'Enter base SENAITE URL: ')
