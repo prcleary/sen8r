@@ -164,44 +164,20 @@ sampletype_lookup <- senaite_lookup('sampletype')
 patient_lookup <- senaite_lookup('patient')
 
 # Get UID from title (most common use case for creating resources)
-dept_uid <- dept_lookup(
-  values = "Microbiology",
-  from = "title",
-  to = "uid"
-)
+dept_uid <- dept_lookup("Microbiology", "title", "uid")
 
-serum_uid <- sampletype_lookup(
-  values = "Serum",
-  from = "title",
-  to = "uid"
-)
+serum_uid <- sampletype_lookup("Serum", "title", "uid")
 
 # Convert department API URL to department title
-dept_name <- dept_lookup(
-  values = "https://senaite.example.org/departments/dept-1",
-  from = "api_url",
-  to = "title"
-)
+dept_name <- dept_lookup("https://senaite.example.org/departments/dept-1", "api_url", "title")
 
 # Lookup patient information by medical record number
-patient_name <- patient_lookup(
-  values = "MRN12345",
-  from = "mrn",
-  to = "title"
-)
+patient_name <- patient_lookup("MRN12345", "mrn", "title")
 
-patient_birthdate <- patient_lookup(
-  values = "MRN12345",
-  from = "mrn",
-  to = "birthdate"
-)
+patient_birthdate <- patient_lookup("MRN12345", "mrn", "birthdate")
 
 # Lookups are vectorized - look up multiple values at once
-multiple_uids <- dept_lookup(
-  values = c("Microbiology", "Hematology", "Chemistry"),
-  from = "title",
-  to = "uid"
-)
+multiple_uids <- dept_lookup(c("Microbiology", "Hematology", "Chemistry"),"title", "uid")
 ```
 
 ### Flatten nested API output
@@ -415,24 +391,12 @@ microbiology_uid <- dept_lookup(
   to = "uid"
 )
 
-serum_uid <- sampletype_lookup(
-  values = "Serum",
-  from = "title",
-  to = "uid"
-)
+serum_uid <- sampletype_lookup("Serum", "title", "uid")
 
-lft_category_uid <- category_lookup(
-  values = "LFT",
-  from = "title",
-  to = "uid"
-)
+lft_category_uid <- category_lookup("LFT", "title", "uid")
 
 # You can also look up multiple values at once
-method_uids <- method_lookup(
-  values = c("PCR", "ELISA"),
-  from = "title",
-  to = "uid"
-)
+method_uids <- method_lookup(c("PCR", "ELISA"), "title", "uid")
 ```
 
 #### Create an Analysis Specification
@@ -440,7 +404,7 @@ method_uids <- method_lookup(
 ```r
 # Look up the sample type UID first
 sampletype_lookup <- senaite_lookup('sampletype')
-serum_uid <- sampletype_lookup(values = "Serum", from = "title", to = "uid")
+serum_uid <- sampletype_lookup("Serum", "title", "uid")
 
 # Define the analysis specification
 body <- list(
@@ -464,7 +428,7 @@ Minimum fields: `portal_type`, `title`, `Department` (uid), `parent_path`
 ```r
 # Look up the department UID first
 dept_lookup <- senaite_lookup('department')
-microbiology_uid <- dept_lookup(values = "Microbiology", from = "title", to = "uid")
+microbiology_uid <- dept_lookup("Microbiology", "title", "uid")
 
 body <- list(
   portal_type = 'AnalysisCategory',
@@ -511,12 +475,8 @@ Minimum fields: `portal_type`, `title`, `parent_path`, `Category`, `Keyword`, `p
 category_lookup <- senaite_lookup('analysiscategory')
 method_lookup <- senaite_lookup('method')
 
-lft_category_uid <- category_lookup(values = "LFT", from = "title", to = "uid")
-method_uids <- method_lookup(
-  values = c("PCR", "ELISA"),
-  from = "title",
-  to = "uid"
-)
+lft_category_uid <- category_lookup("LFT", "title", "uid")
+method_uids <- method_lookup(c("PCR", "ELISA"), "title", "uid")
 
 body <- list(
   portal_type = 'AnalysisService',
