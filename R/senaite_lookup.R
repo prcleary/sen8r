@@ -90,9 +90,6 @@ senaite_lookup <- function(endpoint,
   cli::cli_alert_info(paste('Lookup fields: ', paste0(names(lookup_table), collapse = ', ')))
 
   function(values, from, to) {
-    data.table::setkeyv(lookup_table, from)
-    join_dt <- data.table::data.table(values)
-    data.table::setnames(join_dt, "values", from)
-    lookup_table[join_dt, on = from][[to]]
+    lookup_table[lookup_table[[from]] %in% values][[to]]
   }
 }
