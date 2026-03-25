@@ -91,6 +91,8 @@ senaite_lookup <- function(endpoint,
 
   function(values, from, to) {
     data.table::setkeyv(lookup_table, from)
-    lookup_table[list(values), on = from][[to]]
+    join_dt <- data.table::data.table(values)
+    data.table::setnames(join_dt, "values", from)
+    lookup_table[join_dt, on = from][[to]]
   }
 }
