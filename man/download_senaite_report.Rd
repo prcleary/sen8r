@@ -6,18 +6,20 @@
 \usage{
 download_senaite_report(
   url,
-  output_file,
+  output_file = NULL,
   username = keyring::key_get("senaite_username"),
   password = keyring::key_get("senaite_password")
 )
 }
 \arguments{
 \item{url}{\code{character(1)}. Fully qualified URL to the SENAITE report
-endpoint (e.g., a PDF or other binary report resource).}
+endpoint (e.g., a PDF or other binary report resource). Example format:
+\code{"https://senaite.example.org/clients/client-1/SAMPLE-001/arreport-1/at_download/Pdf"}}
 
 \item{output_file}{\code{character(1)}. Path (including filename) where the
-downloaded file should be saved. If the file already exists, it will
-be overwritten.}
+downloaded file should be saved. If \code{NULL} (default), the filename
+is extracted from the URL (the sample ID component) with a \code{.pdf}
+extension. If the file already exists, it will be overwritten.}
 
 \item{username}{\code{character(1)}. SENAITE username used for authentication.
 Defaults to the value stored in the system keyring under
@@ -50,17 +52,28 @@ is displayed using \code{cli::cli_alert_warning()}.
 
 This function does not automatically create directories for
 \code{output_file}. Ensure the target directory exists before calling.
+\subsection{Automatic Filename Extraction}{
+
+When \code{output_file} is \code{NULL}, the function extracts the sample ID from
+the URL path. For example, given the URL:
+
+\verb{https://senaite.example.org/clients/client-1/SAMPLE-001/arreport-1/at_download/Pdf}
+
+The output file will be \verb{SAMPLE-001.pdf}.
+}
 }
 \examples{
 \dontrun{
-# Example: download a PDF report
-report_url <- "https://lims.example.com/@API/senaite/v1/report/AR-0001"
+# Example: download a PDF report with automatic filename
+report_url <- "https://senaite.example.org/clients/client-1/SAMPLE-001/arreport-1/at_download/Pdf"
 
+download_senaite_report(url = report_url)
+# Creates: SAMPLE-001.pdf
+
+# Example: download with custom filename
 download_senaite_report(
   url = report_url,
-  output_file = "AR-0001-report.pdf",
-  username = "your_username",
-  password = "your_password"
+  output_file = "custom-report.pdf"
 )
 }
 
