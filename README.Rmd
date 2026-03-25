@@ -63,7 +63,7 @@ senaite_setup()
 ```
 
 This will prompt you to enter:
-
+  
 - Your SENAITE username
 - Your SENAITE password
 - Your SENAITE base URL (e.g., `https://senaite.example.org/instancename`)

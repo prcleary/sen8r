@@ -54,9 +54,12 @@ Run the interactive setup once to store your credentials securely:
 senaite_setup()
 ```
 
-This will prompt you to enter: - Your SENAITE username - Your SENAITE
-password - Your SENAITE base URL (e.g.,
-`https://senaite.example.org/instancename`)
+This will prompt you to enter:
+
+- Your SENAITE username
+- Your SENAITE password
+- Your SENAITE base URL (e.g.,
+  `https://senaite.example.org/instancename`)
 
 Credentials are stored in your system keyring and used automatically by
 other functions.
