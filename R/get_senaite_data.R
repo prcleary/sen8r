@@ -1,255 +1,139 @@
-#' Retrieve Data from the SENAITE API
+#' Retrieve records from a SENAITE API endpoint
 #'
-#' Downloads data from a specified SENAITE REST API endpoint with optional
-#' query parameters and automatic pagination handling.
+#' Sends an authenticated GET request to the SENAITE instance stored in a
+#' named profile. For collection responses, retrieves all pages and returns
+#' their items as one list.
 #'
-#' The function performs authenticated `GET` requests and automatically
-#' retrieves all pages of results when the API response indicates multiple
-#' pages are available.
+#' @param endpoint A single endpoint name, such as `"client"`,
+#'   `"analysisrequest"`, or `"sampletype"`. Supply a name, not a URL.
+#' @param params A named list of query parameters, such as
+#'   `list(review_state = "verified")`. Do not include `limit` or `b_start`;
+#'   the getter manages pagination.
+#' @param limit Positive whole number of records to request per page.
+#'   This is a page size, not a limit on the total number returned.
+#' @param verbose If `TRUE`, report download progress.
+#' @param profile Name of the connection profile saved by [senaite_setup()].
+#'   Defaults to `"default"`.
 #'
-#' @param endpoint `character(1)`. The SENAITE API endpoint to query.
-#'   Must be one of the supported endpoint names (see Details).
-#'
-#' @param params `list`. Named list of query parameters to include in the
-#'   API request. Default is an empty list.
-#'
-#' @param limit `numeric(1)`. Maximum number of records to retrieve per page.
-#'   Defaults to `100`. This value is passed to the API as a query parameter.
-#'
-#' @param verbose `logical(1)`. If `TRUE` (default), progress messages are
-#'   printed using \code{cli::cli_alert_info()}.
-#'
-#' @param username `character(1)`. SENAITE username for HTTP authentication.
-#'   Defaults to the value stored in the system keyring under
-#'   `"senaite_username"`.
-#'
-#' @param password `character(1)`. SENAITE password for HTTP authentication.
-#'   Defaults to the value stored in the system keyring under
-#'   `"senaite_password"`.
-#'
-#' @param base_url `character(1)`. Base URL of the SENAITE instance.
-#'   Defaults to the value stored in the system keyring under `"BASE_URL"`.
-#'
-#' @returns
-#' If successful, returns a `list` of items retrieved from the API.
-#' Each element corresponds to a SENAITE object.
-#'
-#' If the endpoint does not return paginated content or is not found,
-#' returns `NULL`.
-#'
-#' @details
-#' ## Pagination
-#'
-#' If the API response contains a `pages` field greater than 1,
-#' the function automatically retrieves additional pages using the
-#' `b_start` parameter and concatenates all returned `items`.
-#'
-#' ## Authentication
-#'
-#' Requests are authenticated using HTTP Basic Authentication via
-#' \code{httr::authenticate()}.
-#'
-#' ## Supported Endpoints
-#'
-#' The `endpoint` argument must match one of the supported SENAITE API
-#' endpoint names (e.g., `"analysis"`, `"analysisrequest"`,
-#' `"client"`, `"sampletype"`, `"worksheet"`, etc.).
-#'
-#' Use `match.arg()` to ensure only valid endpoints are accepted.
+#' @returns A list of SENAITE records. An empty collection returns `list()`.
+#'   For compatibility with the original getter, a successful response
+#'   without a `pages` field returns `NULL`. HTTP errors, including 404,
+#'   raise an error.
 #'
 #' @examples
 #' \dontrun{
-#' # Retrieve clients
-#' clients <- get_senaite_data("client", limit = 50)
+#' clients <- get_senaite_data("client", profile = "lab-lan")
 #'
-#' # Retrieve verified analysis requests
-#' ars <- get_senaite_data(
-#'   endpoint = "analysisrequest",
+#' verified <- get_senaite_data(
+#'   "analysisrequest",
 #'   params = list(review_state = "verified"),
-#'   limit = 100
+#'   limit = 50,
+#'   profile = "lab-lan"
 #' )
 #' }
 #'
-#' @seealso
-#' \code{\link{construct_senaite_url}},
-#' \code{\link[httr]{GET}},
-#' \code{\link[httr]{authenticate}},
-#' \code{\link[keyring]{key_get}}
-#'
+#' @seealso [senaite_setup()]
 #' @export
-get_senaite_data <- function(endpoint = c(
-  'analysis',
-  'analysiscategories',
-  'analysiscategory',
-  'analysisprofile',
-  'analysisprofiles',
-  'analysisrequest',
-  'analysisrequestsfolder',
-  'analysisservice',
-  'analysisservices',
-  'analysisspec',
-  'analysisspecs',
-  'antibiotic',
-  'antibioticclass',
-  'arreport',
-  'artemplate',
-  'artemplates',
-  'astpanel',
-  'astpanelfolder',
-  'attachment',
-  'attachmenttype',
-  'attachmenttypes',
-  'auditlog',
-  'autoimportlog',
-  'batch',
-  'batchfolder',
-  'batchlabel',
-  'batchlabels',
-  'bikasetup',
-  'breakpointstable',
-  'breakpointstables',
-  'calculation',
-  'calculations',
-  'catalogs',
-  'client',
-  'clientfolder',
-  'contact',
-  'samplecontainer',
-  'samplecontainers',
-  'containertype',
-  'containertypes',
-  'databox',
-  'databoxfolder',
-  'department',
-  'departments',
-  'duplicateanalysis',
-  'dynamicanalysisspec',
-  'dynamicanalysisspecs',
-  'instrument',
-  'instrumentcalibration',
-  'instrumentcertification',
-  'instrumentlocation',
-  'instrumentlocations',
-  'instrumentmaintenancetask',
-  'instruments',
-  'instrumentscheduledtask',
-  'instrumenttype',
-  'instrumenttypes',
-  'instrumentvalidation',
-  'interpretationtemplate',
-  'invoice',
-  'labcontact',
-  'labcontacts',
-  'laboratory',
-  'labproduct',
-  'labproducts',
-  'manufacturer',
-  'manufacturers',
-  'method',
-  'methods',
-  'microorganism',
-  'microorganismcategory',
-  'microorganismcategories',
-  'microorganismfolder',
-  'multifile',
-  'patient',
-  'patientfolder',
-  'plone_site',
-  'preservation',
-  'preservations',
-  'pricelist',
-  'pricelistfolder',
-  'referenceanalysis',
-  'referencedefinition',
-  'referencedefinitions',
-  'referencesample',
-  'referencesamplesfolder',
-  'reflexrule',
-  'reflexrulefolder',
-  'rejectanalysis',
-  'report',
-  'reportfolder',
-  'samplecondition',
-  'sampleconditions',
-  'samplematrices',
-  'samplematrix',
-  'samplepoint',
-  'samplepoints',
-  'sampletype',
-  'sampletypes',
-  'samplingdeviation',
-  'samplingdeviations',
-  'search',
-  'storagelocation',
-  'storagelocations',
-  'subgroup',
-  'subgroups',
-  'supplier',
-  'suppliercontact',
-  'suppliers',
-  'supplyorder',
-  'supplyorderfolder',
-  'version',
-  'worksheet',
-  'worksheetfolder',
-  'worksheettemplate',
-  'worksheettemplates'
-),
-params = list(),
-limit = 100,
-verbose = TRUE,
-username = keyring::key_get('senaite_username'),
-password = keyring::key_get('senaite_password'),
-base_url = keyring::key_get('BASE_URL')) {
-  if (!is.list(params)) {
-    stop('`params` should be a list', call. = FALSE)
+get_senaite_data <- function(endpoint = "analysis",
+                             params = list(),
+                             limit = 100,
+                             verbose = TRUE,
+                             profile = "default") {
+
+  # Accept an endpoint name only. The destination comes from the profile.
+  if (!is.character(endpoint) || length(endpoint) != 1L ||
+      is.na(endpoint) || !grepl("^[A-Za-z][A-Za-z0-9_]*$", endpoint)) {
+    stop(
+      "`endpoint` must be a single endpoint name, e.g. 'client', not a URL.",
+      call. = FALSE
+    )
   }
 
-  endpoint <- match.arg(endpoint)
-
-  params <- c(params, limit = limit)
-
-  url <- construct_senaite_url(endpoint, params, base_url = base_url)
-
-  if (verbose) {
-    cli::cli_alert_info('Downloading: {url}')
+  if (!is.list(params) || is.data.frame(params)) {
+    stop("`params` must be a named list, or list().", call. = FALSE)
   }
 
-  response <- httr::GET(url, httr::authenticate(username, password))
+  if (length(params)) {
+    nm <- names(params)
 
-  httr::stop_for_status(response)
-
-  output <- httr::content(response)
-
-  if (is.null(output$pages)) {
-    if (verbose) {
-      cli::cli_alert_warning('Not found')
+    if (is.null(nm) || anyNA(nm) || any(!nzchar(nm)) || anyDuplicated(nm)) {
+      stop("Each entry in `params` must have a unique, non-empty name.",
+           call. = FALSE)
     }
 
+    if (any(nm %in% c("limit", "b_start"))) {
+      stop(
+        "Use the `limit` argument for page size. ",
+        "Do not supply `limit` or `b_start` in `params`.",
+        call. = FALSE
+      )
+    }
+  }
+
+  if (!is.numeric(limit) || length(limit) != 1L || !is.finite(limit) ||
+      limit < 1 || limit != floor(limit)) {
+    stop("`limit` must be a positive whole number.", call. = FALSE)
+  }
+
+  if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose)) {
+    stop("`verbose` must be TRUE or FALSE.", call. = FALSE)
+  }
+
+  auth <- senaite_credentials(profile)
+
+  fetch_page <- function(page, offset) {
+    query <- params
+    query$limit <- limit
+    if (offset > 0) {
+      query$b_start <- offset
+    }
+
+    if (verbose) {
+      cli::cli_alert_info("Downloading {endpoint}: page {page}")
+    }
+
+    senaite_get_json(path = endpoint, auth = auth, query = query)
+  }
+  first <- fetch_page(page = 1L, offset = 0)
+
+  if (is.null(first[["pages"]])) {
+    if (verbose) {
+      cli::cli_alert_info(
+        "The {endpoint} response has no 'pages' field; returning NULL."
+      )
+    }
     return(NULL)
   }
 
-  n_pages <- output$pages
-
-  if (n_pages <= 1) {
-    return(output$items)
+  n_pages <- suppressWarnings(as.numeric(first[["pages"]]))
+  if (length(n_pages) != 1L || !is.finite(n_pages) ||
+      n_pages < 0 || n_pages != floor(n_pages)) {
+    stop("SENAITE returned an invalid 'pages' value.", call. = FALSE)
   }
 
-  b_start <- seq(limit, n_pages * limit, limit)
+  if (n_pages == 0) {
+    return(list())
+  }
 
-  next_urls <- paste0(url, '&b_start=', b_start)
-
-  next_outputs <- lapply(next_urls, function(x) {
-    if (verbose) {
-      cli::cli_alert_info('Downloading: {x}')
+  page_items <- function(body, page) {
+    items <- body[["items"]]
+    if (is.null(items) || !is.list(items)) {
+      stop("SENAITE page ", page, " did not contain an 'items' list.",
+           call. = FALSE)
     }
-    resp <- httr::GET(x, httr::authenticate(username, password))
-    httr::stop_for_status(resp)
-    httr::content(resp)
-  })
+    items
+  }
 
-  items <- unlist(c(list(output$items), lapply(next_outputs, function(x)
-    x$items)), recursive = FALSE)
+  batches <- vector("list", n_pages)
+  batches[[1L]] <- page_items(first, 1L)
 
-  items
+  if (n_pages > 1L) {
+    for (page in seq.int(2L, n_pages)) {
+      offset <- (page - 1) * limit
+      batches[[page]] <- page_items(fetch_page(page, offset), page)
+    }
+  }
+
+  # Join the pages without flattening the fields inside each record.
+  do.call(c, unname(batches))
 }
