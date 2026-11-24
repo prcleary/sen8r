@@ -11,5 +11,10 @@ sen8r provides a clean, pipe-friendly and well-documented R interface for workin
 \author{
 \strong{Maintainer}: Paul Cleary \email{paul.cleary@ukhsa.gov.uk}
 
+Authors:
+\itemize{
+  \item Paul Cleary \email{paul.cleary@ukhsa.gov.uk}
+}
+
 }
 \keyword{internal}

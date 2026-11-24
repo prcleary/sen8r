@@ -4,63 +4,42 @@
 \alias{construct_senaite_url}
 \title{Construct a SENAITE API URL}
 \usage{
-construct_senaite_url(
-  endpoint,
-  params = list(),
-  base_url = keyring::key_get("BASE_URL")
-)
+construct_senaite_url(endpoint, params = list(), base_url)
 }
 \arguments{
-\item{endpoint}{\code{character(1)}. The API endpoint path relative to
-\verb{@API/senaite/v1/}. For example: \code{"samples"} or \code{"analysisrequests/AR-0001"}.}
+\item{endpoint}{A relative API endpoint name, such as \code{"client"}, or a
+relative record path, such as \code{"analysisrequest/AR-0001"}. A single
+leading slash is optional. Do not include a URL or query string.}
 
-\item{params}{\verb{named list}. Optional query parameters to append to the URL.
-Names are used as parameter keys and values as parameter values.
-Default is an empty list (\code{list()}).}
+\item{params}{A named list of query parameters. Each value must be one
+non-missing character, numeric, or logical value. An empty list adds
+no query string.}
 
-\item{base_url}{\code{character(1)}. The base URL of the SENAITE instance,
-e.g. \code{"https://lims.example.com"}. Defaults to the value stored in
-the system keyring under the key \code{"BASE_URL"}.}
+\item{base_url}{The SENAITE instance URL, including its port and instance
+path if applicable. Required. When called from \code{\link[=get_senaite_data]{get_senaite_data()}},
+this comes from the selected connection profile.}
 }
 \value{
-A \code{character(1)} containing the complete API URL.
+A single character string containing the complete API URL.
 }
 \description{
-Builds a fully qualified SENAITE REST API URL for a given endpoint and
-optional query parameters. The function automatically:
-}
-\details{
-\itemize{
-\item Removes trailing slashes from \code{base_url}
-\item Removes leading slashes from \code{endpoint}
-\item Appends the SENAITE API path (\verb{@API/senaite/v1/})
-\item Adds URL query parameters if provided
-}
-
-This function does not perform URL encoding of parameters. If parameters
-may contain special characters, they should be URL-encoded prior to
-calling this function.
-
-The constructed URL follows this structure:
-
-\if{html}{\out{<div class="sourceCode">}}\preformatted{\{base_url\}/@API/senaite/v1/\{endpoint\}?param1=value1&param2=value2
-}\if{html}{\out{</div>}}
-
-If \code{params} is empty, no query string is appended.
+Build a URL under the supplied instance's \verb{@API/senaite/v1/} path.
+Query parameter names and values are URL-encoded. Pass ordinary R
+strings, not strings that have already been URL-encoded.
 }
 \examples{
-# Basic endpoint
-construct_senaite_url("samples",
-                      base_url = "https://lims.example.com")
-
-# Endpoint with query parameters
 construct_senaite_url(
-  endpoint = "analysisrequests",
-  params = list(review_state = "verified", limit = 10),
-  base_url = "https://lims.example.com"
+  "client",
+  base_url = "https://lims.example.com/senaite"
+)
+
+construct_senaite_url(
+  "analysisrequest",
+  params = list(review_state = "verified", limit = 50, b_start = 50),
+  base_url = "https://lims.example.com/senaite"
 )
 
 }
 \seealso{
-\link[keyring:key_get]{key_get}
+\code{\link[=get_senaite_data]{get_senaite_data()}}, \code{\link[=senaite_setup]{senaite_setup()}}
 }

@@ -2,84 +2,27 @@
 % Please edit documentation in R/post_senaite_data.R
 \name{post_senaite_data}
 \alias{post_senaite_data}
-\title{Create a New Object via the SENAITE API}
+\title{Create a SENAITE object from a prepared payload}
 \usage{
-post_senaite_data(
-  body,
-  username = keyring::key_get("senaite_username"),
-  password = keyring::key_get("senaite_password"),
-  base_url = keyring::key_get("BASE_URL")
-)
+post_senaite_data(body, profile = "default", encoding = c("json", "form"))
 }
 \arguments{
-\item{body}{\code{list} or \verb{named list}. The request payload to be sent to
-the SENAITE API. This will be JSON-encoded using
-\code{httr::POST(..., encode = "json")}. The structure of \code{body}
-must conform to the SENAITE API specification for object creation.}
+\item{body}{A non-empty named list containing the create payload.
+Field names and nested values are passed to the API without flattening.}
 
-\item{username}{\code{character(1)}. SENAITE username used for HTTP Basic
-Authentication.}
+\item{profile}{Name of the connection profile saved by \code{\link[=senaite_setup]{senaite_setup()}}.}
 
-\item{password}{\code{character(1)}. SENAITE password used for HTTP Basic
-Authentication.}
-
-\item{base_url}{\code{character(1)}. Base URL of the SENAITE instance
-(e.g., \code{"https://lims.example.com"}). Defaults to the value stored
-in the system keyring under \code{"BASE_URL"}.}
+\item{encoding}{Request body encoding. Defaults to \code{"json"}; use \code{"form"}
+for a URL-encoded form.}
 }
 \value{
-If the request succeeds (HTTP status 200), the full \code{httr} response
-object is returned invisibly.
-
-If the request fails, the \code{httr} response object is returned visibly,
-allowing inspection of status codes and error messages.
+The parsed, unflattened JSON response, or \code{NULL} for an empty
+successful response. HTTP errors raise an error.
 }
 \description{
-Sends a POST request to the SENAITE REST API to create a new object.
-The request body is encoded as JSON and submitted to the \code{create}
-endpoint.
-}
-\details{
-\subsection{Endpoint}{
-
-The request is sent to:
-
-\if{html}{\out{<div class="sourceCode">}}\preformatted{\{base_url\}/@API/senaite/v1/create
-}\if{html}{\out{</div>}}
-}
-
-\subsection{Authentication}{
-
-Authentication is performed using HTTP Basic Authentication via
-\code{httr::authenticate()}.
-}
-
-\subsection{Error Handling}{
-
-The function checks for HTTP status code 200 to determine success.
-If the upload fails, a warning message including the HTTP status code
-is displayed using \code{cli::cli_alert_warning()}.
-}
-}
-\examples{
-\dontrun{
-# Example: create a new client
-new_client <- list(
-  portal_type = "Client",
-  title = "Acme Corporation",
-  email = "info@acme.com"
-)
-
-response <- post_senaite_data(
-  body = new_client,
-  username = "your_username",
-  password = "your_password"
-)
-}
-
+Submits a named list to the SENAITE \code{create} endpoint using the
+connection settings for the selected profile.
 }
 \seealso{
-\code{\link{construct_senaite_url}},
-\code{\link[httr]{POST}},
-\code{\link[httr]{authenticate}}
+\code{\link[=senaite_setup]{senaite_setup()}}, \code{\link[=get_senaite_data]{get_senaite_data()}}
 }

@@ -2,125 +2,56 @@
 % Please edit documentation in R/get_senaite_data.R
 \name{get_senaite_data}
 \alias{get_senaite_data}
-\title{Retrieve Data from the SENAITE API}
+\title{Retrieve records from a SENAITE API endpoint}
 \usage{
 get_senaite_data(
-  endpoint = c("analysis", "analysiscategories", "analysiscategory", "analysisprofile",
-    "analysisprofiles", "analysisrequest", "analysisrequestsfolder", "analysisservice",
-    "analysisservices", "analysisspec", "analysisspecs", "antibiotic", "antibioticclass",
-    "arreport", "artemplate", "artemplates", "astpanel", "astpanelfolder", "attachment",
-    "attachmenttype", "attachmenttypes", "auditlog", "autoimportlog", "batch",
-    "batchfolder", "batchlabel", "batchlabels", "bikasetup", "breakpointstable",
-    "breakpointstables", 
-     "calculation", "calculations", "catalogs", "client",
-    "clientfolder", "contact", "samplecontainer", "samplecontainers", "containertype",
-    "containertypes", "databox", "databoxfolder", "department", "departments",
-    "duplicateanalysis", "dynamicanalysisspec", "dynamicanalysisspecs", "instrument",
-    "instrumentcalibration", "instrumentcertification", "instrumentlocation",
-    "instrumentlocations", "instrumentmaintenancetask", "instruments",
-    "instrumentscheduledtask", "instrumenttype", "instrumenttypes", 
-    
-    "instrumentvalidation", "interpretationtemplate", "invoice", "labcontact",
-    "labcontacts", "laboratory", "labproduct", "labproducts", "manufacturer",
-    "manufacturers", "method", "methods", "microorganism", "microorganismcategory",
-    "microorganismcategories", "microorganismfolder", "multifile", "patient",
-    "patientfolder", "plone_site", "preservation", "preservations", "pricelist",
-    "pricelistfolder", "referenceanalysis", "referencedefinition",
-    "referencedefinitions", "referencesample", "referencesamplesfolder", 
-    
-    "reflexrule", "reflexrulefolder", "rejectanalysis", "report", "reportfolder",
-    "samplecondition", "sampleconditions", "samplematrices", "samplematrix",
-    "samplepoint", "samplepoints", "sampletype", "sampletypes", "samplingdeviation",
-    "samplingdeviations", "search", "storagelocation", "storagelocations", "subgroup",
-    "subgroups", "supplier", "suppliercontact", "suppliers", "supplyorder",
-    "supplyorderfolder", "version", "worksheet", "worksheetfolder", "worksheettemplate",
-    "worksheettemplates"),
+  endpoint = "analysis",
   params = list(),
   limit = 100,
   verbose = TRUE,
-  username = keyring::key_get("senaite_username"),
-  password = keyring::key_get("senaite_password"),
-  base_url = keyring::key_get("BASE_URL")
+  profile = "default"
 )
 }
 \arguments{
-\item{endpoint}{\code{character(1)}. The SENAITE API endpoint to query.
-Must be one of the supported endpoint names (see Details).}
+\item{endpoint}{A single endpoint name, such as \code{"client"},
+\code{"analysisrequest"}, or \code{"sampletype"}. Supply a name, not a URL.}
 
-\item{params}{\code{list}. Named list of query parameters to include in the
-API request. Default is an empty list.}
+\item{params}{A named list of query parameters, such as
+\code{list(review_state = "verified")}. Do not include \code{limit} or \code{b_start};
+the getter manages pagination.}
 
-\item{limit}{\code{numeric(1)}. Maximum number of records to retrieve per page.
-Defaults to \code{100}. This value is passed to the API as a query parameter.}
+\item{limit}{Positive whole number of records to request per page.
+This is a page size, not a limit on the total number returned.}
 
-\item{verbose}{\code{logical(1)}. If \code{TRUE} (default), progress messages are
-printed using \code{cli::cli_alert_info()}.}
+\item{verbose}{If \code{TRUE}, report download progress.}
 
-\item{username}{\code{character(1)}. SENAITE username for HTTP authentication.
-Defaults to the value stored in the system keyring under
-\code{"senaite_username"}.}
-
-\item{password}{\code{character(1)}. SENAITE password for HTTP authentication.
-Defaults to the value stored in the system keyring under
-\code{"senaite_password"}.}
-
-\item{base_url}{\code{character(1)}. Base URL of the SENAITE instance.
-Defaults to the value stored in the system keyring under \code{"BASE_URL"}.}
+\item{profile}{Name of the connection profile saved by \code{\link[=senaite_setup]{senaite_setup()}}.
+Defaults to \code{"default"}.}
 }
 \value{
-If successful, returns a \code{list} of items retrieved from the API.
-Each element corresponds to a SENAITE object.
-
-If the endpoint does not return paginated content or is not found,
-returns \code{NULL}.
+A list of SENAITE records. An empty collection returns \code{list()}.
+For compatibility with the original getter, a successful response
+without a \code{pages} field returns \code{NULL}. HTTP errors, including 404,
+raise an error.
 }
 \description{
-Downloads data from a specified SENAITE REST API endpoint with optional
-query parameters and automatic pagination handling.
-}
-\details{
-The function performs authenticated \code{GET} requests and automatically
-retrieves all pages of results when the API response indicates multiple
-pages are available.
-\subsection{Pagination}{
-
-If the API response contains a \code{pages} field greater than 1,
-the function automatically retrieves additional pages using the
-\code{b_start} parameter and concatenates all returned \code{items}.
-}
-
-\subsection{Authentication}{
-
-Requests are authenticated using HTTP Basic Authentication via
-\code{httr::authenticate()}.
-}
-
-\subsection{Supported Endpoints}{
-
-The \code{endpoint} argument must match one of the supported SENAITE API
-endpoint names (e.g., \code{"analysis"}, \code{"analysisrequest"},
-\code{"client"}, \code{"sampletype"}, \code{"worksheet"}, etc.).
-
-Use \code{match.arg()} to ensure only valid endpoints are accepted.
-}
+Sends an authenticated GET request to the SENAITE instance stored in a
+named profile. For collection responses, retrieves all pages and returns
+their items as one list.
 }
 \examples{
 \dontrun{
-# Retrieve clients
-clients <- get_senaite_data("client", limit = 50)
+clients <- get_senaite_data("client", profile = "lab-lan")
 
-# Retrieve verified analysis requests
-ars <- get_senaite_data(
-  endpoint = "analysisrequest",
+verified <- get_senaite_data(
+  "analysisrequest",
   params = list(review_state = "verified"),
-  limit = 100
+  limit = 50,
+  profile = "lab-lan"
 )
 }
 
 }
 \seealso{
-\code{\link{construct_senaite_url}},
-\code{\link[httr]{GET}},
-\code{\link[httr]{authenticate}},
-\code{\link[keyring]{key_get}}
+\code{\link[=senaite_setup]{senaite_setup()}}
 }

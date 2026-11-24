@@ -2,61 +2,45 @@
 % Please edit documentation in R/flatten_senaite_output.R
 \name{flatten_senaite_output}
 \alias{flatten_senaite_output}
-\title{Flatten Nested SENAITE API Output into a Tabular Format}
+\title{Flatten SENAITE records into a data.table}
 \usage{
-flatten_senaite_output(x, collapse = "+")
+flatten_senaite_output(x, collapse = NULL)
 }
 \arguments{
-\item{x}{\code{list}. A list of SENAITE API response objects. Each element
-should be a named list (possibly nested) representing one record.}
+\item{x}{A list of records, as returned by \code{\link[=get_senaite_data]{get_senaite_data()}}. Each
+record must be a named list. Supply a collection, not a single record.}
 
-\item{collapse}{\code{character(1)}. A string used to concatenate multiple
-values that map to the same field name. Defaults to \code{"+"}.}
+\item{collapse}{A single string used to join arrays of simple values.
+Defaults to \code{NULL} to keep arrays as list-columns.}
 }
 \value{
-A \code{data.table} where:
-\itemize{
-\item Each element of \code{x} becomes one row
-\item List names become column names
-\item Repeated values are collapsed into a single string
-\item Missing fields are filled with \code{NA}
-}
+A \code{data.table} in input row order. Columns are ordered by first
+appearance. Missing scalar values are \code{NA}; missing list-column values
+are \code{NULL}. A field that is \code{NULL} in every record is logical \code{NA}.
+An empty collection returns a zero-row, zero-column \code{data.table}.
 }
 \description{
-Converts a list of nested SENAITE API response objects into a flat
-tabular structure. Each element of the input list is unpacked,
-transformed into a one-row data frame, and combined into a single
-\code{data.table}.
+Convert a collection of parsed SENAITE records to one row per record.
+Named nested objects become dotted columns. Arrays never create extra rows.
 }
 \details{
-Nested list elements are unlisted, and duplicated field names are
-collapsed into a single string using the specified separator.
+Intended for JSON parsed with \code{simplifyVector = FALSE}. Unnamed lists
+represent arrays; non-empty named lists represent objects. Multi-element
+atomic vectors are also accepted as arrays. Arrays containing objects,
+nested arrays, or nulls are kept intact rather than converted to text.
 
-The function performs the following steps:
-\enumerate{
-\item Unlists each record in \code{x}
-\item Converts it to a two-column tibble (\code{name}, \code{value})
-\item Pivots to wide format
-\item Collapses duplicate field values using \code{collapse}
-\item Row-binds all records into a single \code{data.table}
-}
-
-This is particularly useful for flattening JSON responses from
-the SENAITE REST API into an analysis-ready structure.
+Integer and double scalars may share a numeric column. Other incompatible
+scalar types are kept in a list-column rather than silently coerced.
+Literal dots in object field names are rejected to prevent collisions
+with generated paths such as \code{location.latitude}.
 }
 \examples{
-\dontrun{
-api_output <- list(
-  list(id = "S1", client = "Client A", tags = c("urgent", "external")),
-  list(id = "S2", client = "Client B", tags = c("internal"))
+records <- list(
+  list(uid = "a", title = "North", count = 2L,
+       location = list(latitude = 51.5), tags = list("urgent", "repeat")),
+  list(uid = "b", title = "South", count = NULL, tags = list())
 )
+flatten_senaite_output(records)
+flatten_senaite_output(records, collapse = NULL)
 
-flatten_senaite_output(api_output)
-}
-
-}
-\seealso{
-\code{\link[tibble]{enframe}},
-\code{\link[tidyr]{pivot_wider}},
-\code{\link[data.table]{rbindlist}}
 }

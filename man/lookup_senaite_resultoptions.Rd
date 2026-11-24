@@ -2,66 +2,32 @@
 % Please edit documentation in R/lookup_senaite_resultoptions.R
 \name{lookup_senaite_resultoptions}
 \alias{lookup_senaite_resultoptions}
-\title{Translate SENAITE Result Codes to Human-Readable Text}
+\title{Translate SENAITE result codes to labels}
 \usage{
 lookup_senaite_resultoptions(result, result_options)
 }
 \arguments{
-\item{result}{\code{character(1)}. A JSON-encoded string representing one or
-more selected result values (e.g., \verb{"[\\"P\\", \\"N\\"]"}).}
+\item{result}{A single character string. When options are supplied,
+this must encode a JSON string, number, or array of those values.}
 
-\item{result_options}{\code{list}. A list of result option objects, each
-containing at least:
-\itemize{
-\item \code{ResultValue}: the stored code
-\item \code{ResultText}: the human-readable label
-}}
+\item{result_options}{A list of option records with \code{ResultValue} and
+\code{ResultText} fields. \code{NULL} or an empty list means no translation.}
 }
 \value{
-If matching result options are found:
-\itemize{
-\item A \code{character(1)} containing the corresponding \code{ResultText}.
-\item If multiple matches are found, they are concatenated with \code{", "}.
-}
-
-If no result options are provided (empty list), returns the original
-\code{result} unchanged.
+A single character string. Labels are joined with \code{", "} in
+selection order. Unknown codes are retained with a warning. With no
+options, \code{result} is returned unchanged. A missing result, JSON \code{null},
+or an empty selection returns \code{NA_character_} when options are supplied.
 }
 \description{
-Converts encoded SENAITE result values into their corresponding
-human-readable labels using a provided result options table.
-}
-\details{
-This is typically used for analyses where results are stored as
-coded values (e.g., JSON-encoded selections) and must be mapped
-to descriptive text.
-
-The function:
-\enumerate{
-\item Parses the JSON-encoded \code{result} using \code{jsonlite::fromJSON()}.
-\item Converts \code{result_options} into a \code{data.table}.
-\item Matches \code{ResultValue} against the parsed result values.
-\item Returns the corresponding \code{ResultText}.
-}
-
-This is particularly useful when working with categorical analysis
-results returned by the SENAITE API.
+Translate SENAITE result codes to labels
 }
 \examples{
-\dontrun{
-result_json <- "[\"P\", \"N\"]"
-
-options_list <- list(
+opts <- list(
   list(ResultValue = "P", ResultText = "Positive"),
   list(ResultValue = "N", ResultText = "Negative")
 )
+lookup_senaite_resultoptions('["N","P"]', opts)
+lookup_senaite_resultoptions("Not detected", list())
 
-lookup_senaite_resultoptions(result_json, options_list)
-# Returns: "Positive, Negative"
-}
-
-}
-\seealso{
-\code{\link[jsonlite]{fromJSON}},
-\code{\link[data.table]{rbindlist}}
 }

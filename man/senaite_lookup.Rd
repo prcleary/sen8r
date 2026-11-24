@@ -2,91 +2,46 @@
 % Please edit documentation in R/senaite_lookup.R
 \name{senaite_lookup}
 \alias{senaite_lookup}
-\title{Create a Lookup Function for a SENAITE Endpoint}
+\title{Create a cached lookup for a SENAITE endpoint}
 \usage{
-senaite_lookup(
-  endpoint,
-  username = keyring::key_get("senaite_username"),
-  password = keyring::key_get("senaite_password"),
-  base_url = keyring::key_get("BASE_URL")
-)
+senaite_lookup(endpoint, profile = "default", verbose = TRUE)
 }
 \arguments{
-\item{endpoint}{\code{character(1)}. Name of the SENAITE API endpoint
-(e.g., \code{"analysisservice"}, \code{"client"}, \code{"sampletype"}).}
+\item{endpoint}{A SENAITE collection endpoint, such as \code{"analysisservice"},
+\code{"client"}, or \code{"samplepoint"}.}
 
-\item{username}{\code{character(1)}. SENAITE username for HTTP authentication.
-Defaults to the value stored in the system keyring under
-\code{"senaite_username"}.}
+\item{profile}{Connection profile passed to \code{\link[=get_senaite_data]{get_senaite_data()}}.}
 
-\item{password}{\code{character(1)}. SENAITE password for HTTP authentication.
-Defaults to the value stored in the system keyring under
-\code{"senaite_password"}.}
-
-\item{base_url}{\code{character(1)}. Base URL of the SENAITE instance.
-Defaults to the value stored in the system keyring under \code{"BASE_URL"}.}
+\item{verbose}{If \code{TRUE}, report download progress and the available
+lookup fields.}
 }
 \value{
-A function with signature:
-
-\if{html}{\out{<div class="sourceCode">}}\preformatted{function(values, from, to)
-}\if{html}{\out{</div>}}
-
-where:
-\itemize{
-\item \code{values}: vector of values to match
-\item \code{from}: column name to match on
-\item \code{to}: column name to return
-}
-
-The returned function performs a keyed lookup using \code{data.table}
-and returns the corresponding values from the \code{to} column.
+A function with signature \verb{function(values, from, to)}.
+\code{values} is a vector of lookup values; \code{from} and \code{to} are exact,
+case-sensitive field names in the flattened table. The result is the
+\code{to} column indexed in the same order as \code{values}. For an atomic
+\code{to} column, an unmatched value returns a typed \code{NA}.
 }
 \description{
-Generates a reusable lookup function for translating values between
-fields of a SENAITE endpoint.
+Download and flatten an endpoint's records once, then return a function
+that translates values between fields without making further API requests.
 }
 \details{
-The function downloads and flattens all objects from the specified
-endpoint, then returns a closure that can be used to map values from
-one field to another.
-\subsection{Workflow}{
-\enumerate{
-\item Calls \code{get_senaite_data()} with \code{children = TRUE} and
-\code{complete = TRUE}.
-\item Flattens the result using \code{flatten_senaite_output()}.
-\item Prints available field names.
-\item Returns a lookup function operating on the cached table.
-}
-}
+Use a unique field such as \code{"uid"} for \code{from} when possible. If several
+records have the same \code{from} value, the first matching record is used.
+Missing input values are treated as unmatched.
 
-\subsection{Performance}{
-
-The endpoint data is downloaded once when \code{senaite_lookup()} is called.
-Subsequent lookups are performed locally using \code{data.table} keyed joins.
-}
-
-\subsection{Requirements}{
-
-The \code{from} column should uniquely identify rows for reliable results.
-}
+The lookup is a snapshot of one endpoint on one profile. Create it again
+to pick up changes on the server. An empty collection raises an error
+because there are no records from which to discover the lookup fields.
 }
 \examples{
 \dontrun{
-# Create a lookup for analysis services
-service_lookup <- senaite_lookup("analysisservice")
-
-# Map service UID to service title
-service_lookup(
-  values = c("uid1", "uid2"),
-  from   = "uid",
-  to     = "title"
-)
+service_lookup <- senaite_lookup("analysisservice", profile = "default")
+service_lookup(c("uid1", "uid2"), from = "uid", to = "title")
 }
 
 }
 \seealso{
-\code{\link{get_senaite_data}},
-\code{\link{flatten_senaite_output}},
-\code{\link[data.table]{setkeyv}}
+\code{\link[=get_senaite_data]{get_senaite_data()}}, \code{\link[=flatten_senaite_output]{flatten_senaite_output()}}
 }
