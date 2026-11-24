@@ -1,87 +1,102 @@
-#' Create a New Object via the SENAITE API
+#' Create a SENAITE object from a prepared payload
 #'
-#' Sends a POST request to the SENAITE REST API to create a new object.
-#' The request body is encoded as JSON and submitted to the `create`
-#' endpoint.
+#' Submits a named list to the SENAITE `create` endpoint using the
+#' connection settings for the selected profile.
 #'
-#' @param body `list` or `named list`. The request payload to be sent to
-#'   the SENAITE API. This will be JSON-encoded using
-#'   \code{httr::POST(..., encode = "json")}. The structure of `body`
-#'   must conform to the SENAITE API specification for object creation.
+#' @param body A non-empty named list containing the create payload.
+#'   Field names and nested values are passed to the API without flattening.
+#' @param profile Name of the connection profile saved by [senaite_setup()].
+#' @param encoding Request body encoding. Defaults to `"json"`; use `"form"`
+#'   for a URL-encoded form.
 #'
-#' @param username `character(1)`. SENAITE username used for HTTP Basic
-#'   Authentication.
+#' @returns The parsed, unflattened JSON response, or `NULL` for an empty
+#'   successful response. HTTP errors raise an error.
 #'
-#' @param password `character(1)`. SENAITE password used for HTTP Basic
-#'   Authentication.
-#'
-#' @param base_url `character(1)`. Base URL of the SENAITE instance
-#'   (e.g., `"https://lims.example.com"`). Defaults to the value stored
-#'   in the system keyring under `"BASE_URL"`.
-#'
-#' @returns
-#' If the request succeeds (HTTP status 200), the full `httr` response
-#' object is returned invisibly.
-#'
-#' If the request fails, the `httr` response object is returned visibly,
-#' allowing inspection of status codes and error messages.
-#'
-#' @details
-#' ## Endpoint
-#'
-#' The request is sent to:
-#'
-#' ```
-#' {base_url}/@@API/senaite/v1/create
-#' ```
-#'
-#' ## Authentication
-#'
-#' Authentication is performed using HTTP Basic Authentication via
-#' \code{httr::authenticate()}.
-#'
-#' ## Error Handling
-#'
-#' The function checks for HTTP status code 200 to determine success.
-#' If the upload fails, a warning message including the HTTP status code
-#' is displayed using \code{cli::cli_alert_warning()}.
-#'
-#' @examples
-#' \dontrun{
-#' # Example: create a new client
-#' new_client <- list(
-#'   portal_type = "Client",
-#'   title = "Acme Corporation",
-#'   email = "info@acme.com"
-#' )
-#'
-#' response <- post_senaite_data(
-#'   body = new_client,
-#'   username = "your_username",
-#'   password = "your_password"
-#' )
-#' }
-#'
-#' @seealso
-#' \code{\link{construct_senaite_url}},
-#' \code{\link[httr]{POST}},
-#' \code{\link[httr]{authenticate}}
-#'
+#' @seealso [senaite_setup()], [get_senaite_data()]
 #' @export
-post_senaite_data <- function(body,
-                              username = keyring::key_get('senaite_username'),
-                              password = keyring::key_get('senaite_password'),
-                              base_url = keyring::key_get('BASE_URL')) {
-  url <- construct_senaite_url('create', base_url = base_url)
-  response <- httr::POST(url,
-                         httr::authenticate(username, password),
-                         body = body,
-                         encode = 'json')
-  if (httr::status_code(response) == 200) {
-    cli::cli_alert_info('Upload successful')
-    invisible(response)
-  } else {
-    cli::cli_alert_warning('Upload failed.\nHTTP Status: {httr::status_code(response)}')
-    response
+post_senaite_data <- function(body, profile = "default", encoding = c("json", "form")) {
+  keys <- names(body)
+
+  if (!is.list(body) || is.data.frame(body) || !length(body) ||
+      is.null(keys) || anyNA(keys) || any(!nzchar(keys)) ||
+      anyDuplicated(keys)) {
+    stop(
+      "`body` must be a non-empty list with unique, non-empty names.",
+      call. = FALSE
+    )
   }
+
+  auth <- senaite_credentials(profile)
+  senaite_post_json(path = "create", auth = auth, body = body, encoding = match.arg(encoding))
+}
+
+# Internal helper: send one JSON POST request using resolved credentials.
+senaite_post_json <- function(path, auth, body, encoding = c("json", "form")) {
+  url <- construct_senaite_url(
+    endpoint = path,
+    params = list(),
+    base_url = auth$base_url
+  )
+
+  encoding <- match.arg(encoding)
+
+  if (encoding == "form") {
+    response <- httr::POST(
+      url,
+      httr::authenticate(auth$username, auth$password, type = "basic"),
+      httr::accept_json(),
+      httr::config(followlocation = 0L),
+      body = body,
+      encode = "form"
+    )
+  } else {
+    payload <- jsonlite::toJSON(
+      body, auto_unbox = TRUE, null = "null", na = "null", digits = NA
+    )
+    response <- httr::POST(
+      url,
+      httr::authenticate(auth$username, auth$password, type = "basic"),
+      httr::accept_json(),
+      httr::content_type_json(),
+      httr::config(followlocation = 0L),
+      body = charToRaw(enc2utf8(as.character(payload)))
+    )
+  }
+
+  status <- httr::status_code(response)
+  if (status >= 300L && status < 400L) {
+    stop(
+      "SENAITE returned a redirect (HTTP ", status, "). ",
+      "Check that the profile contains the final instance URL.",
+      call. = FALSE
+    )
+  }
+
+  text <- httr::content(response, as = "text", encoding = "UTF-8")
+
+  if (httr::http_error(response)) {
+    detail <- trimws(text)
+    if (!nzchar(detail)) {
+      detail <- "(SENAITE returned no error body)"
+    }
+
+    stop(
+      "SENAITE create failed (HTTP ", status, ").\n",
+      substr(detail, 1L, 2000L),
+      call. = FALSE
+    )
+  }
+  if (!nzchar(trimws(text))) {
+    return(NULL)
+  }
+
+  if (!jsonlite::validate(text)) {
+    stop(
+      "SENAITE returned HTTP ", status, " but the response was not JSON. ",
+      "Check whether the object was created before retrying.",
+      call. = FALSE
+    )
+  }
+
+  jsonlite::fromJSON(text, simplifyVector = FALSE)
 }
