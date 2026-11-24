@@ -1,97 +1,86 @@
-#' Create a Lookup Function for a SENAITE Endpoint
+#' Create a cached lookup for a SENAITE endpoint
 #'
-#' Generates a reusable lookup function for translating values between
-#' fields of a SENAITE endpoint.
+#' Download and flatten an endpoint's records once, then return a function
+#' that translates values between fields without making further API requests.
 #'
-#' The function downloads and flattens all objects from the specified
-#' endpoint, then returns a closure that can be used to map values from
-#' one field to another.
+#' @param endpoint A SENAITE collection endpoint, such as `"analysisservice"`,
+#'   `"client"`, or `"samplepoint"`.
+#' @param profile Connection profile passed to [get_senaite_data()].
+#' @param verbose If `TRUE`, report download progress and the available
+#'   lookup fields.
 #'
-#' @param endpoint `character(1)`. Name of the SENAITE API endpoint
-#'   (e.g., `"analysisservice"`, `"client"`, `"sampletype"`).
-#'
-#' @param username `character(1)`. SENAITE username for HTTP authentication.
-#'   Defaults to the value stored in the system keyring under
-#'   `"senaite_username"`.
-#'
-#' @param password `character(1)`. SENAITE password for HTTP authentication.
-#'   Defaults to the value stored in the system keyring under
-#'   `"senaite_password"`.
-#'
-#' @param base_url `character(1)`. Base URL of the SENAITE instance.
-#'   Defaults to the value stored in the system keyring under `"BASE_URL"`.
-#'
-#' @returns
-#' A function with signature:
-#'
-#' ```
-#' function(values, from, to)
-#' ```
-#'
-#' where:
-#'
-#' - `values`: vector of values to match
-#' - `from`: column name to match on
-#' - `to`: column name to return
-#'
-#' The returned function performs a keyed lookup using `data.table`
-#' and returns the corresponding values from the `to` column.
+#' @returns A function with signature `function(values, from, to)`.
+#'   `values` is a vector of lookup values; `from` and `to` are exact,
+#'   case-sensitive field names in the flattened table. The result is the
+#'   `to` column indexed in the same order as `values`. For an atomic
+#'   `to` column, an unmatched value returns a typed `NA`.
 #'
 #' @details
-#' ## Workflow
+#' Use a unique field such as `"uid"` for `from` when possible. If several
+#' records have the same `from` value, the first matching record is used.
+#' Missing input values are treated as unmatched.
 #'
-#' 1. Calls \code{get_senaite_data()} with `children = TRUE` and
-#'    `complete = TRUE`.
-#' 2. Flattens the result using \code{flatten_senaite_output()}.
-#' 3. Prints available field names.
-#' 4. Returns a lookup function operating on the cached table.
-#'
-#' ## Performance
-#'
-#' The endpoint data is downloaded once when `senaite_lookup()` is called.
-#' Subsequent lookups are performed locally using `data.table` keyed joins.
-#'
-#' ## Requirements
-#'
-#' The `from` column should uniquely identify rows for reliable results.
+#' The lookup is a snapshot of one endpoint on one profile. Create it again
+#' to pick up changes on the server. An empty collection raises an error
+#' because there are no records from which to discover the lookup fields.
 #'
 #' @examples
 #' \dontrun{
-#' # Create a lookup for analysis services
-#' service_lookup <- senaite_lookup("analysisservice")
-#'
-#' # Map service UID to service title
-#' service_lookup(
-#'   values = c("uid1", "uid2"),
-#'   from   = "uid",
-#'   to     = "title"
-#' )
+#' service_lookup <- senaite_lookup("analysisservice", profile = "default")
+#' service_lookup(c("uid1", "uid2"), from = "uid", to = "title")
 #' }
 #'
-#' @seealso
-#' \code{\link{get_senaite_data}},
-#' \code{\link{flatten_senaite_output}},
-#' \code{\link[data.table]{setkeyv}}
-#'
+#' @seealso [get_senaite_data()], [flatten_senaite_output()]
 #' @export
-senaite_lookup <- function(endpoint,
-                           username = keyring::key_get('senaite_username'),
-                           password = keyring::key_get('senaite_password'),
-                           base_url = keyring::key_get('BASE_URL')) {
-  lookup_table <- get_senaite_data(
-    endpoint,
-    params = list(children = TRUE, complete = TRUE),
-    username = username,
-    password = password,
-    base_url = base_url
-  ) |>
-    flatten_senaite_output()
+senaite_lookup <- function(endpoint, profile = "default", verbose = TRUE) {
+  records <- get_senaite_data(
+    endpoint = endpoint,
+    params = list(children = "yes", complete = "yes"),
+    profile = profile,
+    verbose = verbose
+  )
 
-  cli::cli_alert_info(paste('Lookup fields: ', paste0(names(lookup_table), collapse = ', ')))
+  if (is.null(records)) {
+    stop(
+      "Endpoint '", endpoint, "' did not return a collection.",
+      call. = FALSE
+    )
+  }
+  if (!length(records)) {
+    stop(
+      "No records available for lookup in endpoint '", endpoint, "'.",
+      call. = FALSE
+    )
+  }
+
+  lookup_table <- flatten_senaite_output(records)
+  rm(records)  # Don't retain both raw and flattened records in the closure.
+  fields <- names(lookup_table)
+
+  if (!length(fields)) {
+    stop("No lookup fields found in endpoint '", endpoint, "'.",
+         call. = FALSE)
+  }
+
+  if (verbose) {
+    cli::cli_alert_info("Lookup fields: {paste(fields, collapse = ', ')}")
+  }
+
+  check_field <- function(field, arg) {
+    if (!is.character(field) || length(field) != 1L || is.na(field) ||
+        !field %in% fields) {
+      stop(
+        "`", arg, "` must be one of: ", paste(fields, collapse = ", "), ".",
+        call. = FALSE
+      )
+    }
+  }
 
   function(values, from, to) {
-    # Use match to find positions and preserve order
-    matches <- match(values, lookup_table[[from]])
-    lookup_table[[to]][matches]
+    check_field(from, "from")
+    check_field(to, "to")
+
+    positions <- match(values, lookup_table[[from]], incomparables = NA)
+    lookup_table[[to]][positions]
   }
 }
