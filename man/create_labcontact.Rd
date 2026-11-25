@@ -8,7 +8,18 @@ create_labcontact(
   firstname,
   surname,
   profile = "default",
-  parent_path = "/senaite/bika_setup/bika_labcontacts"
+  parent_path = "/senaite/bika_setup/bika_labcontacts",
+  salutation = NULL,
+  job_title = NULL,
+  email_address = NULL,
+  business_phone = NULL,
+  business_fax = NULL,
+  home_phone = NULL,
+  mobile_phone = NULL,
+  middle_initial = NULL,
+  middle_name = NULL,
+  physical_address = NULL,
+  postal_address = NULL
 )
 }
 \arguments{
@@ -19,13 +30,31 @@ create_labcontact(
 \item{profile}{SENAITE connection profile.}
 
 \item{parent_path}{Site path to the laboratory contacts folder.}
+
+\item{salutation}{Optional greeting title, as entered in the web UI.}
+
+\item{job_title}{Optional job title.}
+
+\item{email_address}{Optional email address.}
+
+\item{business_phone, business_fax, home_phone, mobile_phone}{Optional
+telephone or fax numbers. Supply as character strings.}
+
+\item{middle_initial}{Optional middle initial, as entered in the web UI.}
+
+\item{middle_name}{Optional middle name, as entered in the web UI.}
+
+\item{physical_address, postal_address}{Optional named lists of address
+components. Allowed names are \code{address}, \code{city}, \code{district}, \code{state},
+\code{zip}, and \code{country}. Supply values as non-empty strings; omit unused
+components. Use a string for \code{zip} to preserve leading zeros.}
 }
 \value{
 The original create response. The new contact's UID is in
 \code{result$items[[1L]]$uid}.
 }
 \description{
-Creates a LabContact using the form fields from the SENAITE JSON API
-2.6.0 create example. Reads the new contact back by UID before returning.
-Each successful call creates a new record; names are not unique identifiers.
+Creates one LabContact and reads it back by UID to verify every supplied
+contact field. Optional fields set to NULL are omitted from the POST.
+Names are not unique; calling this function again can create a duplicate.
 }
